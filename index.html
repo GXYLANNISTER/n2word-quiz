@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日语N2词汇练习</title>
+    <!-- 引入Tailwind CSS框架 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        .card-flip-container {
+            perspective: 1000px;
+        }
+        .card {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .card-face, .card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        .quiz-option.correct {
+            background-color: #4ade80; /* green-400 */
+            border-color: #22c55e; /* green-500 */
+            color: white;
+        }
+        .quiz-option.incorrect {
+            background-color: #f87171; /* red-400 */
+            border-color: #ef4444; /* red-500 */
+            color: white;
+        }
+        .quiz-option.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Vue App 容器 -->
+    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- 文件加载界面 -->
+        <div v-if="!isFileLoaded" class="max-w-xl mx-auto text-center bg-white p-8 rounded-xl shadow-2xl">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">欢迎使用日语N2词汇练习</h1>
+            <p class="text-gray-600 mb-6">请先加载您的词库文件 (JSON格式)，然后开始学习和练习。</p>
+            
+            <label for="file-upload" class="w-full inline-block bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105 cursor-pointer">
+                选择JSON文件
+            </label>
+            <input id="file-upload" type="file" @change="handleFileUpload" class="hidden" accept=".json">
+
+            <p v-if="errorMessage" class="mt-4 text-red-500 font-semibold">{{ errorMessage }}</p>
+        </div>
+
+        <!-- 主应用界面 (文件加载后显示) -->
+        <div v-if="isFileLoaded">
+            <!-- 页面头部 -->
+            <header class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-gray-800 mb-2">日语N2核心词汇练习</h1>
+                <p class="text-lg text-gray-600">已加载词库: <span class="font-semibold text-indigo-600">{{ fileName }}</span></p>
+                <div class="mt-6 flex justify-center space-x-4">
+                    <button @click="changeMode('list')" :class="{'bg-indigo-600 text-white': mode === 'list', 'bg-white text-indigo-600': mode !== 'list'}" class="px-6 py-2 font-semibold rounded-lg shadow-md hover:bg-indigo-500 transition-colors duration-300">词汇列表</button>
+                    <button @click="changeMode('quiz')" :class="{'bg-indigo-600 text-white': mode === 'quiz', 'bg-white text-indigo-600': mode !== 'quiz'}" class="px-6 py-2 font-semibold rounded-lg shadow-md hover:bg-indigo-500 transition-colors duration-300">练习模式</button>
+                </div>
+            </header>
+
+            <main>
+                <!-- 词汇列表模式 -->
+                <div v-if="mode === 'list'">
+                    <!-- Shuffle Mode Toggle -->
+                    <div class="flex justify-end mb-4">
+                        <button @click="toggleShuffle" 
+                                :class="isShuffled ? 'bg-teal-500 text-white' : 'bg-white text-gray-700'"
+                                class="px-4 py-2 font-semibold rounded-lg shadow-md flex items-center transition-colors duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 111.414-1.414L9 9.586V4a1 1 0 011-1zm-4 9a1 1 0 100 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                                <path d="M3 6a1 1 0 011-1h2.158a1 1 0 01.707.293l1.414 1.414a1 1 0 001.414 0l1.414-1.414A1 1 0 0112.842 5H15a1 1 0 110 2h-1.158a1 1 0 01-.707-.293L11.414 8.42a1 1 0 00-1.414 0L8.278 10.147a1 1 0 01-.707.293H5a1 1 0 01-1-1V6z" />
+                            </svg>
+                            {{ isShuffled ? '恢复顺序' : '乱序模式' }}
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div v-for="word in paginatedWords" :key="word.kanji + word.word" @click="selectWord(word)" class="bg-white p-5 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transform transition-all duration-300 cursor-pointer">
+                            <h3 class="text-2xl font-bold text-indigo-700">{{ word.kanji }} <span class="text-lg text-gray-500 font-normal">{{ word.word }}</span></h3>
+                            <p class="text-gray-600 mt-2">{{ word.translation }}</p>
+                        </div>
+                    </div>
+                    <!-- 分页 -->
+                    <div class="mt-8 flex justify-center items-center space-x-4">
+                        <button @click="prevPage" :disabled="currentPage === 1" class="px-4 py-2 bg-white rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed">&lt; 上一页</button>
+                        <span class="text-gray-700">第 {{ currentPage }} / {{ totalPages }} 页</span>
+                        <button @click="nextPage" :disabled="currentPage === totalPages" class="px-4 py-2 bg-white rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed">下一页 &gt;</button>
+                    </div>
+                </div>
+
+                <!-- 练习模式 -->
+                <div v-if="mode === 'quiz'" class="max-w-3xl mx-auto">
+                    <!-- 模式选择 -->
+                    <div v-if="!quizType" class="bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6">请选择练习模式</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <button @click="startQuiz('kanji_to_meaning')" class="p-6 bg-indigo-500 text-white rounded-lg shadow-lg hover:bg-indigo-600 transition-all transform hover:scale-105">
+                                <span class="text-xl font-bold">汉字 → 释义</span><br><span class="text-sm opacity-80">根据汉字选择正确的中文意思</span>
+                            </button>
+                            <button @click="startQuiz('kanji_to_kana')" class="p-6 bg-teal-500 text-white rounded-lg shadow-lg hover:bg-teal-600 transition-all transform hover:scale-105">
+                                <span class="text-xl font-bold">汉字 → 假名</span><br><span class="text-sm opacity-80">根据汉字选择正确的假名读音</span>
+                            </button>
+                            <button @click="startQuiz('kana_to_kanji')" class="p-6 bg-amber-500 text-white rounded-lg shadow-lg hover:bg-amber-600 transition-all transform hover:scale-105">
+                                <span class="text-xl font-bold">假名 → 汉字</span><br><span class="text-sm opacity-80">根据假名选择正确的汉字写法</span>
+                            </button>
+                            <button @click="startQuiz('mixed')" class="p-6 bg-rose-500 text-white rounded-lg shadow-lg hover:bg-rose-600 transition-all transform hover:scale-105">
+                                <span class="text-xl font-bold">混合模式</span><br><span class="text-sm opacity-80">随机混合以上三种题型</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 答题界面 -->
+                    <div v-if="quizType && !quizFinished" class="bg-white p-8 rounded-xl shadow-2xl">
+                        <div class="text-center mb-6">
+                            <p class="text-lg text-gray-600 mb-2">问题 {{ currentQuestionIndex + 1 }} / {{ quizWords.length }}</p>
+                            <h2 class="text-5xl font-bold text-indigo-700 mb-4">{{ currentQuestion.question }}</h2>
+                            <p v-if="currentQuestion.type === 'kanji_to_meaning'" class="text-2xl text-gray-500">{{ currentQuestion.word.word }}</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button v-for="(option, index) in currentQuestion.options" :key="index" @click="checkAnswer(option)"
+                                    :class="['quiz-option p-4 text-lg font-semibold rounded-lg border-2 border-gray-300 hover:bg-gray-200 transition-colors duration-200', optionClass(option), {'disabled': answered}]"
+                                    :disabled="answered">
+                                {{ option }}
+                            </button>
+                        </div>
+                        
+                        <div v-if="answered && (currentQuestion.type === 'kanji_to_kana' || currentQuestion.type === 'kana_to_kanji')" 
+                             class="mt-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg animate-fade-in">
+                            <p class="text-lg font-bold text-indigo-800">{{ currentQuestion.word.kanji }} [{{ currentQuestion.word.word }}]</p>
+                            <p class="mt-1 text-gray-700"><strong>释义：</strong> {{ currentQuestion.word.translation }}</p>
+                            <p v-if="currentQuestion.word.example" class="mt-1 text-gray-600"><strong>例句：</strong> {{ currentQuestion.word.example }}</p>
+                        </div>
+
+                        <div class="mt-6 text-center">
+                             <button v-if="answered" @click="nextQuestion" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105">下一题</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 练习结果 -->
+                    <div v-if="quizFinished" class="bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">练习结束！</h2>
+                        <p class="text-xl text-gray-600 mb-6">您的得分是： <span class="font-bold text-indigo-600">{{ score }} / {{ quizWords.length }}</span></p>
+                        <div class="mb-6">
+                            <h3 class="text-2xl font-semibold mb-3">答错的单词</h3>
+                            <ul v-if="incorrectAnswers.length > 0" class="list-disc list-inside text-left max-w-md mx-auto bg-gray-50 p-4 rounded-lg">
+                                <li v-for="item in incorrectAnswers" :key="item.word.kanji" class="text-lg mb-2">
+                                    <span class="font-bold">{{ item.word.kanji }} ({{ item.word.word }})</span>: {{ item.word.translation }}
+                                </li>
+                            </ul>
+                            <p v-else class="text-gray-500 mt-4">太棒了！没有答错的单词。</p>
+                        </div>
+                        <div class="flex justify-center space-x-4">
+                            <button @click="resetQuiz" class="px-6 py-3 bg-gray-600 text-white font-bold rounded-lg shadow-lg hover:bg-gray-700 transition-transform transform hover:scale-105">返回模式选择</button>
+                            <button @click="startQuiz(quizType)" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105">再试一次</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 单词详情弹窗 -->
+                <div v-if="selectedWord" @click.self="selectedWord = null" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg transform transition-all duration-300 scale-95" :class="{'scale-100': selectedWord}">
+                        <div class="card-flip-container relative w-full h-96" @click="flipCard">
+                            <div class="card absolute w-full h-full" :class="{'is-flipped': cardFlipped}">
+                                <!-- 卡片正面 -->
+                                <div class="card-face bg-indigo-500 text-white p-8 rounded-2xl flex flex-col justify-center items-center cursor-pointer">
+                                    <h2 class="text-5xl font-bold">{{ selectedWord.kanji }}</h2>
+                                    <p class="text-2xl mt-2 opacity-80">{{ selectedWord.word }}</p>
+                                    <p class="absolute bottom-4 text-sm opacity-60">点击卡片查看释义</p>
+                                </div>
+                                <!-- 卡片背面 -->
+                                <div class="card-back bg-white p-8 rounded-2xl flex flex-col justify-between">
+                                    <div>
+                                        <h3 class="text-2xl font-bold text-gray-800 mb-3">释义</h3>
+                                        <p class="text-lg text-gray-700 mb-4">{{ selectedWord.translation }}</p>
+                                        <h3 v-if="selectedWord.example" class="text-xl font-bold text-gray-800 mb-2">例句</h3>
+                                        <p v-if="selectedWord.example" class="text-md text-gray-700">{{ selectedWord.example }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-b-2xl flex justify-end">
+                             <button @click="selectedWord = null" class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+    </div>
+
+    <!-- 引入Vue.js框架 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- 主应用逻辑脚本 -->
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    words: [], // 存储从JSON加载的完整词库
+                    originalWords: [], // 存储原始顺序的词库
+                    isFileLoaded: false, // 控制主应用是否显示
+                    fileName: '', // 已加载的文件名
+                    errorMessage: '', // 文件加载错误信息
+                    mode: 'list', // 当前模式: 'list' 或 'quiz'
+                    isShuffled: false, // 词汇列表是否乱序
+                    selectedWord: null, // 词汇列表模式下选中的单词
+                    cardFlipped: false, // 单词详情卡片是否翻转
+                    // 练习模式相关数据
+                    quizType: null,
+                    quizWords: [],
+                    currentQuestionIndex: 0,
+                    score: 0,
+                    answered: false,
+                    selectedAnswer: '',
+                    incorrectAnswers: [],
+                    quizFinished: false,
+                    // 分页相关数据
+                    currentPage: 1,
+                    itemsPerPage: 12,
+                }
+            },
+            computed: {
+                currentQuestion() {
+                    return this.quizWords.length > 0 ? this.quizWords[this.currentQuestionIndex] : null;
+                },
+                totalPages() {
+                    return this.words.length > 0 ? Math.ceil(this.words.length / this.itemsPerPage) : 1;
+                },
+                paginatedWords() {
+                    const start = (this.currentPage - 1) * this.itemsPerPage;
+                    const end = start + this.itemsPerPage;
+                    return this.words.slice(start, end);
+                }
+            },
+            methods: {
+                handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            // 验证JSON文件格式
+                            if (Array.isArray(data) && data.length > 0 && 'kanji' in data[0] && 'word' in data[0] && 'translation' in data[0]) {
+                                this.words = [...data];
+                                this.originalWords = [...data]; // 保存原始顺序
+                                this.isFileLoaded = true;
+                                this.fileName = file.name;
+                                this.errorMessage = '';
+                            } else {
+                                throw new Error('无效的词库文件格式。');
+                            }
+                        } catch (error) {
+                            console.error("加载或解析文件失败:", error);
+                            this.errorMessage = '加载失败！请确保文件是正确的JSON格式。';
+                        }
+                    };
+                    reader.onerror = (error) => {
+                        console.error("读取文件失败:", error);
+                        this.errorMessage = '读取文件时发生错误。';
+                    };
+                    reader.readAsText(file);
+                },
+                changeMode(newMode) {
+                    this.mode = newMode;
+                    if (newMode === 'quiz') this.resetQuiz();
+                },
+                resetQuiz() {
+                    this.quizType = null;
+                    this.quizFinished = false;
+                },
+                selectWord(word) {
+                    this.selectedWord = word;
+                    this.cardFlipped = false;
+                },
+                flipCard() {
+                    this.cardFlipped = !this.cardFlipped;
+                },
+                shuffleArray(array) {
+                    let newArr = [...array];
+                    for (let i = newArr.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+                    }
+                    return newArr;
+                },
+                toggleShuffle() {
+                    this.isShuffled = !this.isShuffled;
+                    if (this.isShuffled) {
+                        this.words = this.shuffleArray(this.words);
+                    } else {
+                        this.words = [...this.originalWords];
+                    }
+                    this.currentPage = 1; // 重置到第一页
+                },
+                startQuiz(type) {
+                    this.quizType = type;
+                    this.quizFinished = false;
+                    this.score = 0;
+                    this.currentQuestionIndex = 0;
+                    this.incorrectAnswers = [];
+                    
+                    let questionPool = this.words.filter(w => w.kanji && w.word);
+                    if(type === 'kanji_to_kana' || type === 'kana_to_kanji' || (type === 'mixed' && Math.random() > 0.3)){
+                        questionPool = questionPool.filter(w => w.kanji !== w.word);
+                    }
+
+                    const shuffledWords = this.shuffleArray([...questionPool]);
+                    const selectedQuizWords = shuffledWords.slice(0, 20);
+
+                    this.quizWords = selectedQuizWords.map(word => {
+                        let currentType = type;
+                        if (type === 'mixed') {
+                            const types = ['kanji_to_meaning', 'kanji_to_kana', 'kana_to_kanji'];
+                            currentType = (word.kanji === word.word) ? 'kanji_to_meaning' : types[Math.floor(Math.random() * types.length)];
+                        }
+                        return this.generateQuestion(word, currentType);
+                    });
+                    this.answered = false;
+                    this.selectedAnswer = '';
+                },
+                generatePhoneticDistractors(reading, count = 3) {
+                    const distractors = new Set();
+                    const chars = reading.split('');
+                    const dakutenMap = {'か':'が','き':'ぎ','く':'ぐ','け':'げ','こ':'ご','さ':'ざ','し':'じ','す':'ず','せ':'ぜ','そ':'ぞ','た':'だ','ち':'ぢ','つ':'づ','て':'で','と':'ど','は':'ば','ひ':'び','ふ':'ぶ','へ':'べ','ほ':'ぼ'};
+                    const reverseDakutenMap = Object.fromEntries(Object.entries(dakutenMap).map(a => a.reverse()));
+                    const yoonMap = {'ゃ':'や','ゅ':'ゆ','ょ':'よ'};
+                    
+                    for (let i = 0; i < chars.length; i++) {
+                        const originalChar = chars[i];
+                        let newReading;
+                        if (i > 0 && ['う', 'い', 'お'].includes(originalChar) && !['あ','い','う','え','お'].includes(chars[i-1])) {
+                           newReading = [...chars];
+                           newReading.splice(i, 1);
+                           distractors.add(newReading.join(''));
+                        }
+                        if (dakutenMap[originalChar]) distractors.add(reading.substring(0, i) + dakutenMap[originalChar] + reading.substring(i + 1));
+                        if (reverseDakutenMap[originalChar]) distractors.add(reading.substring(0, i) + reverseDakutenMap[originalChar] + reading.substring(i + 1));
+                        if (originalChar === 'っ') {
+                             newReading = [...chars];
+                             newReading.splice(i, 1);
+                             distractors.add(newReading.join(''));
+                        }
+                        if (yoonMap[originalChar]) distractors.add(reading.substring(0, i) + yoonMap[originalChar] + reading.substring(i + 1));
+                    }
+                    
+                    distractors.delete(reading);
+                    const shuffled = this.shuffleArray(Array.from(distractors));
+                    
+                    if(shuffled.length < count) {
+                        const fallback = this.getJLPTStyleDistractors({word: '', kanji: '', reading: reading}, 'word', count - shuffled.length);
+                        fallback.forEach(f => { if(shuffled.length < count && !shuffled.includes(f)) shuffled.push(f); });
+                    }
+                    return shuffled.slice(0, count);
+                },
+                getJLPTStyleDistractors(correctWord, property, count = 3) {
+                    const distractors = new Set();
+                    const allWords = this.words;
+
+                    if (property === 'kanji') { // For kana_to_kanji
+                        const homophones = allWords.filter(w => w.word === correctWord.word && w.kanji !== correctWord.kanji);
+                        this.shuffleArray(homophones).forEach(w => { if (distractors.size < count) distractors.add(w.kanji); });
+                    }
+
+                    if (distractors.size < count) {
+                        const correctKanjiChars = correctWord.kanji.split('').filter(char => /\p{Script=Han}/u.test(char));
+                        if (correctKanjiChars.length > 0) {
+                            const relatedWords = allWords.filter(w => {
+                                if (w.kanji === correctWord.kanji) return false;
+                                const wordKanji = w.kanji.split('');
+                                return correctKanjiChars.some(kanji => wordKanji.includes(kanji));
+                            });
+                            this.shuffleArray(relatedWords).forEach(w => {
+                                if (distractors.size < count && w[property] !== correctWord[property] && !distractors.has(w[property])) distractors.add(w[property]);
+                            });
+                        }
+                    }
+                    
+                    while (distractors.size < count) {
+                        const randomWord = allWords[Math.floor(Math.random() * allWords.length)];
+                        if (randomWord[property] !== correctWord[property] && !distractors.has(randomWord[property])) distractors.add(randomWord[property]);
+                    }
+                    return Array.from(distractors);
+                },
+                generateQuestion(word, type) {
+                    let question, answer, options;
+                    
+                    switch (type) {
+                        case 'kanji_to_kana':
+                            question = word.kanji;
+                            answer = word.word;
+                            options = this.shuffleArray([answer, ...this.generatePhoneticDistractors(answer)]);
+                            break;
+                        case 'kana_to_kanji':
+                            question = word.word;
+                            answer = word.kanji;
+                            options = this.shuffleArray([answer, ...this.getJLPTStyleDistractors(word, 'kanji')]);
+                            break;
+                        case 'kanji_to_meaning':
+                        default:
+                            question = word.kanji;
+                            answer = word.translation;
+                            options = this.shuffleArray([answer, ...this.getJLPTStyleDistractors(word, 'translation')]);
+                            break;
+                    }
+                    return { word, type, question, answer, options };
+                },
+                checkAnswer(option) {
+                    if (this.answered) return;
+                    this.answered = true;
+                    this.selectedAnswer = option;
+                    if (option === this.currentQuestion.answer) {
+                        this.score++;
+                    } else {
+                        this.incorrectAnswers.push(this.currentQuestion);
+                    }
+                },
+                optionClass(option) {
+                    if (!this.answered) return '';
+                    if (option === this.currentQuestion.answer) return 'correct';
+                    if (option === this.selectedAnswer && option !== this.currentQuestion.answer) return 'incorrect';
+                    return '';
+                },
+                nextQuestion() {
+                    if (this.currentQuestionIndex < this.quizWords.length - 1) {
+                        this.currentQuestionIndex++;
+                        this.answered = false;
+                        this.selectedAnswer = '';
+                    } else {
+                        this.quizFinished = true;
+                    }
+                },
+                nextPage() {
+                    if (this.currentPage < this.totalPages) this.currentPage++;
+                },
+                prevPage() {
+                    if (this.currentPage > 1) this.currentPage--;
+                }
+            },
+            mounted() {
+                // The app starts by waiting for a file upload.
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
