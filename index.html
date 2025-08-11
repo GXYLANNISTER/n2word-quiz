@@ -7,17 +7,37 @@
     <!-- 引入Tailwind CSS框架 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入字体 -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- 自定义样式 -->
     <style>
+        :root {
+            --primary-glow: #6366f1; /* Indigo-500 */
+            --correct-glow: #10b981; /* Emerald-500 */
+            --incorrect-glow: #ef4444; /* Red-500 */
+        }
+
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #0c0a18;
+            background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 20px 20px;
+            color: #e5e7eb; /* Gray-200 */
         }
+
+        /* 玻璃拟态效果 */
+        .glass-pane {
+            background: rgba(23, 21, 40, 0.6);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
         .card-flip-container {
-            perspective: 1000px;
+            perspective: 1500px;
         }
         .card {
-            transition: transform 0.6s;
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
             transform-style: preserve-3d;
         }
         .card.is-flipped {
@@ -33,181 +53,215 @@
         .card-back {
             transform: rotateY(180deg);
         }
+
+        .quiz-option {
+            transition: all 0.2s ease-in-out;
+        }
+        .quiz-option:not(.disabled):hover {
+            border-color: var(--primary-glow);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+        .quiz-option:active {
+            transform: scale(0.97);
+        }
         .quiz-option.correct {
-            background-color: #4ade80; /* green-400 */
-            border-color: #22c55e; /* green-500 */
+            background-color: var(--correct-glow);
+            border-color: var(--correct-glow);
             color: white;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
         }
         .quiz-option.incorrect {
-            background-color: #f87171; /* red-400 */
-            border-color: #ef4444; /* red-500 */
+            background-color: var(--incorrect-glow);
+            border-color: var(--incorrect-glow);
             color: white;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
         }
         .quiz-option.disabled {
             cursor: not-allowed;
             opacity: 0.7;
         }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        
+        /* 动态背景辉光 */
+        .glow-bg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 800px;
+            height: 800px;
+            background-image: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 60%);
+            transform: translate(-50%, -50%);
+            animation: pulse 15s infinite ease-in-out;
+            z-index: -1;
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
+            50% { transform: translate(-45%, -55%) scale(1.2); opacity: 0.4; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="min-h-screen">
+    <div class="glow-bg"></div>
 
     <!-- Vue App 容器 -->
-    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8">
+    <div id="app" class="relative z-10 container mx-auto p-4 sm:p-6 lg:p-8">
         
         <!-- 文件加载界面 -->
-        <div v-if="!isFileLoaded" class="max-w-xl mx-auto text-center bg-white p-8 rounded-xl shadow-2xl">
-            <h1 class="text-3xl font-bold text-gray-800 mb-4">欢迎使用日语N2词汇练习</h1>
-            <p class="text-gray-600 mb-6">请先加载您的词库文件 (JSON格式)，然后开始学习和练习。</p>
+        <div v-if="!isFileLoaded" class="max-w-xl mx-auto text-center glass-pane p-8 sm:p-12 rounded-2xl animate-fade-in">
+            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h1 class="text-3xl font-bold text-white mt-4 mb-4">欢迎使用日语N2词汇练习</h1>
+            <p class="text-gray-300 mb-8">请先加载您的词库文件 (JSON格式)，然后开始学习和练习。</p>
             
-            <label for="file-upload" class="w-full inline-block bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105 cursor-pointer">
+            <label for="file-upload" class="w-full inline-block bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105 cursor-pointer">
                 选择JSON文件
             </label>
             <input id="file-upload" type="file" @change="handleFileUpload" class="hidden" accept=".json">
 
-            <p v-if="errorMessage" class="mt-4 text-red-500 font-semibold">{{ errorMessage }}</p>
+            <p v-if="errorMessage" class="mt-4 text-red-400 font-semibold">{{ errorMessage }}</p>
         </div>
 
         <!-- 主应用界面 (文件加载后显示) -->
-        <div v-if="isFileLoaded">
+        <div v-if="isFileLoaded" class="animate-fade-in">
             <!-- 页面头部 -->
-            <header class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-gray-800 mb-2">日语N2核心词汇练习</h1>
-                <p class="text-lg text-gray-600">已加载词库: <span class="font-semibold text-indigo-600">{{ fileName }}</span></p>
-                <div class="mt-6 flex justify-center space-x-4">
-                    <button @click="changeMode('list')" :class="{'bg-indigo-600 text-white': mode === 'list', 'bg-white text-indigo-600': mode !== 'list'}" class="px-6 py-2 font-semibold rounded-lg shadow-md hover:bg-indigo-500 transition-colors duration-300">词汇列表</button>
-                    <button @click="changeMode('quiz')" :class="{'bg-indigo-600 text-white': mode === 'quiz', 'bg-white text-indigo-600': mode !== 'quiz'}" class="px-6 py-2 font-semibold rounded-lg shadow-md hover:bg-indigo-500 transition-colors duration-300">练习模式</button>
+            <header class="text-center mb-10">
+                <h1 class="text-5xl font-bold text-white mb-2" style="text-shadow: 0 0 15px rgba(99, 102, 241, 0.5);">日语N2核心词汇练习</h1>
+                <p class="text-lg text-gray-400">已加载词库: <span class="font-semibold text-indigo-400">{{ fileName }}</span></p>
+                <div class="mt-8 flex justify-center space-x-4">
+                    <button @click="changeMode('list')" :class="{'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50': mode === 'list', 'bg-gray-700/50 text-gray-200 hover:bg-gray-700/80': mode !== 'list'}" class="px-6 py-2 font-medium rounded-lg border border-indigo-500/50 transition-all duration-200">词汇列表</button>
+                    <button @click="changeMode('quiz')" :class="{'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50': mode === 'quiz', 'bg-gray-700/50 text-gray-200 hover:bg-gray-700/80': mode !== 'quiz'}" class="px-6 py-2 font-medium rounded-lg border border-indigo-500/50 transition-all duration-200">练习模式</button>
                 </div>
             </header>
 
             <main>
                 <!-- 词汇列表模式 -->
                 <div v-if="mode === 'list'">
-                    <!-- Shuffle Mode Toggle -->
                     <div class="flex justify-end mb-4">
                         <button @click="toggleShuffle" 
-                                :class="isShuffled ? 'bg-teal-500 text-white' : 'bg-white text-gray-700'"
-                                class="px-4 py-2 font-semibold rounded-lg shadow-md flex items-center transition-colors duration-300">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 111.414-1.414L9 9.586V4a1 1 0 011-1zm-4 9a1 1 0 100 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
-                                <path d="M3 6a1 1 0 011-1h2.158a1 1 0 01.707.293l1.414 1.414a1 1 0 001.414 0l1.414-1.414A1 1 0 0112.842 5H15a1 1 0 110 2h-1.158a1 1 0 01-.707-.293L11.414 8.42a1 1 0 00-1.414 0L8.278 10.147a1 1 0 01-.707.293H5a1 1 0 01-1-1V6z" />
+                                :class="isShuffled ? 'bg-teal-500 text-white' : 'bg-gray-700/50 text-gray-200'"
+                                class="px-4 py-2 font-semibold rounded-lg shadow-md border border-gray-600 flex items-center transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
                             {{ isShuffled ? '恢复顺序' : '乱序模式' }}
                         </button>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div v-for="word in paginatedWords" :key="word.kanji + word.word" @click="selectWord(word)" class="bg-white p-5 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transform transition-all duration-300 cursor-pointer">
-                            <h3 class="text-2xl font-bold text-indigo-700">{{ word.kanji }} <span class="text-lg text-gray-500 font-normal">{{ word.word }}</span></h3>
-                            <p class="text-gray-600 mt-2">{{ word.translation }}</p>
+                        <div v-for="word in paginatedWords" :key="word.kanji + word.word" @click="selectWord(word)" class="glass-pane p-6 rounded-xl shadow-lg hover:shadow-indigo-500/20 hover:border-indigo-400 hover:-translate-y-1 transform transition-all duration-300 cursor-pointer">
+                            <h3 class="text-2xl font-bold text-indigo-300">{{ word.kanji }} <span class="text-lg text-gray-400 font-normal">{{ word.word }}</span></h3>
+                            <p class="text-gray-300 mt-2">{{ word.translation }}</p>
                         </div>
                     </div>
-                    <!-- 分页 -->
-                    <div class="mt-8 flex justify-center items-center space-x-4">
-                        <button @click="prevPage" :disabled="currentPage === 1" class="px-4 py-2 bg-white rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed">&lt; 上一页</button>
-                        <span class="text-gray-700">第 {{ currentPage }} / {{ totalPages }} 页</span>
-                        <button @click="nextPage" :disabled="currentPage === totalPages" class="px-4 py-2 bg-white rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed">下一页 &gt;</button>
+                    <div class="mt-10 flex justify-center items-center space-x-4">
+                        <button @click="prevPage" :disabled="currentPage === 1" class="px-4 py-2 bg-gray-700/50 rounded-lg shadow-md border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-transform hover:scale-105"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>上一页</button>
+                        <span class="text-gray-300 font-medium">第 {{ currentPage }} / {{ totalPages }} 页</span>
+                        <button @click="nextPage" :disabled="currentPage === totalPages" class="px-4 py-2 bg-gray-700/50 rounded-lg shadow-md border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-transform hover:scale-105">下一页<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg></button>
                     </div>
                 </div>
 
                 <!-- 练习模式 -->
                 <div v-if="mode === 'quiz'" class="max-w-3xl mx-auto">
                     <!-- 模式选择 -->
-                    <div v-if="!quizType" class="bg-white p-8 rounded-xl shadow-2xl text-center">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-6">请选择练习模式</h2>
+                    <div v-if="!quizType" class="glass-pane p-8 rounded-2xl shadow-2xl text-center animate-fade-in">
+                        <h2 class="text-3xl font-bold text-white mb-6">请选择练习模式</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <button @click="startQuiz('kanji_to_meaning')" class="p-6 bg-indigo-500 text-white rounded-lg shadow-lg hover:bg-indigo-600 transition-all transform hover:scale-105">
-                                <span class="text-xl font-bold">汉字 → 释义</span><br><span class="text-sm opacity-80">根据汉字选择正确的中文意思</span>
+                            <button @click="startQuiz('kanji_to_meaning')" class="p-6 bg-indigo-500 text-white rounded-xl shadow-lg hover:bg-indigo-600 transition-all transform hover:scale-105 hover:shadow-xl">
+                                <span class="text-xl font-bold">汉字 → 释义</span><br><span class="text-sm opacity-90">根据汉字选择正确的中文意思</span>
                             </button>
-                            <button @click="startQuiz('kanji_to_kana')" class="p-6 bg-teal-500 text-white rounded-lg shadow-lg hover:bg-teal-600 transition-all transform hover:scale-105">
-                                <span class="text-xl font-bold">汉字 → 假名</span><br><span class="text-sm opacity-80">根据汉字选择正确的假名读音</span>
+                            <button @click="startQuiz('kanji_to_kana')" class="p-6 bg-teal-500 text-white rounded-xl shadow-lg hover:bg-teal-600 transition-all transform hover:scale-105 hover:shadow-xl">
+                                <span class="text-xl font-bold">汉字 → 假名</span><br><span class="text-sm opacity-90">根据汉字选择正确的假名读音</span>
                             </button>
-                            <button @click="startQuiz('kana_to_kanji')" class="p-6 bg-amber-500 text-white rounded-lg shadow-lg hover:bg-amber-600 transition-all transform hover:scale-105">
-                                <span class="text-xl font-bold">假名 → 汉字</span><br><span class="text-sm opacity-80">根据假名选择正确的汉字写法</span>
+                            <button @click="startQuiz('kana_to_kanji')" class="p-6 bg-amber-500 text-white rounded-xl shadow-lg hover:bg-amber-600 transition-all transform hover:scale-105 hover:shadow-xl">
+                                <span class="text-xl font-bold">假名 → 汉字</span><br><span class="text-sm opacity-90">根据假名选择正确的汉字写法</span>
                             </button>
-                            <button @click="startQuiz('mixed')" class="p-6 bg-rose-500 text-white rounded-lg shadow-lg hover:bg-rose-600 transition-all transform hover:scale-105">
-                                <span class="text-xl font-bold">混合模式</span><br><span class="text-sm opacity-80">随机混合以上三种题型</span>
+                            <button @click="startQuiz('mixed')" class="p-6 bg-rose-500 text-white rounded-xl shadow-lg hover:bg-rose-600 transition-all transform hover:scale-105 hover:shadow-xl">
+                                <span class="text-xl font-bold">混合模式</span><br><span class="text-sm opacity-90">随机混合以上三种题型</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- 答题界面 -->
-                    <div v-if="quizType && !quizFinished" class="bg-white p-8 rounded-xl shadow-2xl">
-                        <div class="text-center mb-6">
-                            <p class="text-lg text-gray-600 mb-2">问题 {{ currentQuestionIndex + 1 }} / {{ quizWords.length }}</p>
-                            <h2 class="text-5xl font-bold text-indigo-700 mb-4">{{ currentQuestion.question }}</h2>
-                            <p v-if="currentQuestion.type === 'kanji_to_meaning'" class="text-2xl text-gray-500">{{ currentQuestion.word.word }}</p>
+                    <div v-if="quizType && !quizFinished" class="glass-pane p-8 rounded-2xl shadow-2xl">
+                        <div class="text-center mb-8">
+                            <p class="text-lg text-gray-400 mb-2">问题 {{ currentQuestionIndex + 1 }} / {{ quizWords.length }}</p>
+                            <h2 class="text-5xl font-bold text-white mb-4">{{ currentQuestion.question }}</h2>
+                            <p v-if="currentQuestion.type === 'kanji_to_meaning'" class="text-2xl text-gray-400">{{ currentQuestion.word.word }}</p>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <button v-for="(option, index) in currentQuestion.options" :key="index" @click="checkAnswer(option)"
-                                    :class="['quiz-option p-4 text-lg font-semibold rounded-lg border-2 border-gray-300 hover:bg-gray-200 transition-colors duration-200', optionClass(option), {'disabled': answered}]"
-                                    :disabled="answered">
+                                    :class="['quiz-option p-4 text-lg font-medium rounded-lg border-2 border-gray-600 bg-gray-800/50 text-gray-200', optionClass(option), {'disabled': answered}]">
                                 {{ option }}
                             </button>
                         </div>
                         
                         <div v-if="answered && (currentQuestion.type === 'kanji_to_kana' || currentQuestion.type === 'kana_to_kanji')" 
-                             class="mt-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg animate-fade-in">
-                            <p class="text-lg font-bold text-indigo-800">{{ currentQuestion.word.kanji }} [{{ currentQuestion.word.word }}]</p>
-                            <p class="mt-1 text-gray-700"><strong>释义：</strong> {{ currentQuestion.word.translation }}</p>
-                            <p v-if="currentQuestion.word.example" class="mt-1 text-gray-600"><strong>例句：</strong> {{ currentQuestion.word.example }}</p>
+                             class="mt-6 p-4 bg-gray-800/50 border-l-4 border-indigo-500 rounded-r-lg animate-fade-in">
+                            <p class="text-lg font-bold text-indigo-300">{{ currentQuestion.word.kanji }} [{{ currentQuestion.word.word }}]</p>
+                            <p class="mt-1 text-gray-300"><strong>释义：</strong> {{ currentQuestion.word.translation }}</p>
+                            <p v-if="currentQuestion.word.example" class="mt-1 text-gray-400"><strong>例句：</strong> {{ currentQuestion.word.example }}</p>
                         </div>
 
-                        <div class="mt-6 text-center">
-                             <button v-if="answered" @click="nextQuestion" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105">下一题</button>
+                        <div class="mt-8 text-center">
+                             <button v-if="answered" @click="nextQuestion" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/50 hover:bg-indigo-700 transition-transform transform hover:scale-105">下一题</button>
                         </div>
                     </div>
                     
                     <!-- 练习结果 -->
-                    <div v-if="quizFinished" class="bg-white p-8 rounded-xl shadow-2xl text-center">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-4">练习结束！</h2>
-                        <p class="text-xl text-gray-600 mb-6">您的得分是： <span class="font-bold text-indigo-600">{{ score }} / {{ quizWords.length }}</span></p>
+                    <div v-if="quizFinished" class="glass-pane p-8 rounded-2xl shadow-2xl text-center">
+                        <h2 class="text-3xl font-bold text-white mb-4">练习结束！</h2>
+                        <p class="text-xl text-gray-400 mb-6">您的得分是： <span class="font-bold text-indigo-400 text-2xl">{{ score }} / {{ quizWords.length }}</span></p>
                         <div class="mb-6">
                             <h3 class="text-2xl font-semibold mb-3">答错的单词</h3>
-                            <ul v-if="incorrectAnswers.length > 0" class="list-disc list-inside text-left max-w-md mx-auto bg-gray-50 p-4 rounded-lg">
+                            <ul v-if="incorrectAnswers.length > 0" class="list-disc list-inside text-left max-w-md mx-auto bg-gray-800/50 p-4 rounded-lg border border-gray-700">
                                 <li v-for="item in incorrectAnswers" :key="item.word.kanji" class="text-lg mb-2">
                                     <span class="font-bold">{{ item.word.kanji }} ({{ item.word.word }})</span>: {{ item.word.translation }}
                                 </li>
                             </ul>
-                            <p v-else class="text-gray-500 mt-4">太棒了！没有答错的单词。</p>
+                            <p v-else class="text-gray-400 mt-4">太棒了！没有答错的单词。</p>
                         </div>
                         <div class="flex justify-center space-x-4">
                             <button @click="resetQuiz" class="px-6 py-3 bg-gray-600 text-white font-bold rounded-lg shadow-lg hover:bg-gray-700 transition-transform transform hover:scale-105">返回模式选择</button>
-                            <button @click="startQuiz(quizType)" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105">再试一次</button>
+                            <button @click="startQuiz(quizType)" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/50 hover:bg-indigo-700 transition-transform transform hover:scale-105">再试一次</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- 单词详情弹窗 -->
-                <div v-if="selectedWord" @click.self="selectedWord = null" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg transform transition-all duration-300 scale-95" :class="{'scale-100': selectedWord}">
+                <div v-if="selectedWord" @click.self="selectedWord = null" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                     <div class="glass-pane rounded-2xl shadow-2xl w-full max-w-lg transform transition-all duration-300 scale-95" :class="{'scale-100': selectedWord}">
                         <div class="card-flip-container relative w-full h-96" @click="flipCard">
                             <div class="card absolute w-full h-full" :class="{'is-flipped': cardFlipped}">
                                 <!-- 卡片正面 -->
-                                <div class="card-face bg-indigo-500 text-white p-8 rounded-2xl flex flex-col justify-center items-center cursor-pointer">
-                                    <h2 class="text-5xl font-bold">{{ selectedWord.kanji }}</h2>
-                                    <p class="text-2xl mt-2 opacity-80">{{ selectedWord.word }}</p>
+                                <div class="card-face bg-indigo-600 text-white p-8 rounded-2xl flex flex-col justify-center items-center cursor-pointer shadow-2xl">
+                                    <h2 class="text-6xl font-bold">{{ selectedWord.kanji }}</h2>
+                                    <p class="text-3xl mt-2 opacity-80">{{ selectedWord.word }}</p>
                                     <p class="absolute bottom-4 text-sm opacity-60">点击卡片查看释义</p>
                                 </div>
                                 <!-- 卡片背面 -->
-                                <div class="card-back bg-white p-8 rounded-2xl flex flex-col justify-between">
+                                <div class="card-back bg-gray-800 text-white p-8 rounded-2xl flex flex-col justify-start">
                                     <div>
-                                        <h3 class="text-2xl font-bold text-gray-800 mb-3">释义</h3>
-                                        <p class="text-lg text-gray-700 mb-4">{{ selectedWord.translation }}</p>
-                                        <h3 v-if="selectedWord.example" class="text-xl font-bold text-gray-800 mb-2">例句</h3>
-                                        <p v-if="selectedWord.example" class="text-md text-gray-700">{{ selectedWord.example }}</p>
+                                        <h3 class="text-2xl font-bold text-indigo-300 mb-3">释义</h3>
+                                        <p class="text-lg text-gray-300 mb-4">{{ selectedWord.translation }}</p>
+                                        <h3 v-if="selectedWord.example" class="text-xl font-bold text-indigo-300 mb-2">例句</h3>
+                                        <p v-if="selectedWord.example" class="text-md text-gray-300" v-html="selectedWord.example.replace(/\n/g, '<br>')"></p>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="p-4 bg-gray-50 rounded-b-2xl flex justify-end">
-                             <button @click="selectedWord = null" class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">关闭</button>
+                        <div class="p-4 bg-gray-900/50 rounded-b-2xl flex justify-end border-t border-gray-700">
+                             <button @click="selectedWord = null" class="px-6 py-2 bg-gray-700 text-gray-200 font-semibold rounded-lg hover:bg-gray-600 transition-colors">关闭</button>
                         </div>
                     </div>
                 </div>
@@ -272,7 +326,16 @@
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         try {
-                            const data = JSON.parse(e.target.result);
+                            let data = JSON.parse(e.target.result);
+                            // FIX: Standardize 'definition' to 'translation'
+                            data = data.map(item => {
+                                if (item.definition && !item.translation) {
+                                    item.translation = item.definition;
+                                    delete item.definition;
+                                }
+                                return item;
+                            });
+
                             // 验证JSON文件格式
                             if (Array.isArray(data) && data.length > 0 && 'kanji' in data[0] && 'word' in data[0] && 'translation' in data[0]) {
                                 this.words = [...data];
@@ -477,3 +540,4 @@
     </script>
 </body>
 </html>
+
